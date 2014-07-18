@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:NavigatorContent xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					xmlns:s="library://ns.adobe.com/flex/spark" 
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:components="org.muzika.components.*"
+					show="setup()" width="100%" height="100%" hide="clean()">
+	
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			
+			import org.muzika.components.DisplayNote;
+			import org.muzika.components.NoteValueOverlay;
+			import org.muzika.components.PuzzlePiece;
+			import org.muzika.vo.User;
+			import org.osmf.events.TimeEvent;
+			import org.tuio.TuioEvent;
+			import org.tuio.TuioManager;
+			import org.tuio.TuioObject;
+			
+			/**
+			 * Whether this has been viewed yet (for puzzle).
+			 */
+			private var hasBeenViewed:Boolean = false;
+			
+			[Bindable]
+			/**
+			 * The reward for this area.
+			 */
+			private var puzzlePiece:PuzzlePiece;
+			
+			/**
+			 * The function to call when we select an app.
+			 */
+			public var goToFunction:Function;
+			
+			/**
+			 * Go to the app that was clicked on.
+			 */
+			private function goToView(appName:String):void {
+				try {
+					goToFunction(appName);
+				} catch(e:Error) {
+					trace("Go to function not defined...");
+				}
+			}
+			
+			/**
+			 * Does prize setting.
+			 */
+			private function setup():void {
+				if(!hasBeenViewed) {
+					//Alert.show("You've explored a new area!  Nice job.  Check out your prize in 'My Unlocked Levels!'");
+					// create a puzzle piece, then pop it for the user to see
+					puzzlePiece = new PuzzlePiece();
+					puzzlePiece.pieceNumber = 5;
+					puzzlePiece.reason = "This was your first time looking at your homework.  Exploring everything in Muzika will let you make " +
+						"bigger and better puzzles.";
+					puzzlePiece.includeInLayout = false;
+					this.addElement(puzzlePiece);
+					
+					// position and animate
+					puzzlePiece.x = (this.width - puzzlePiece.width) / 2 - 150;
+					puzzlePiece.y = (this.height - puzzlePiece.height) / 2 - 150;
+					popAndShrink.play();
+				}
+				hasBeenViewed = true;
+			}
+			
+			/**
+			 * Removes the puzzle piece.
+			 */
+			private function clean():void {
+				var found:Boolean = false;
+				for(var i:int = 0; i < this.numElements; i++) {
+					if(this.getElementAt(i) == puzzlePiece) {
+						found = true;
+						break;
+					}
+				}
+				if(found) {
+					this.removeElement(puzzlePiece);
+				}
+			}
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<s:Sequence id="popAndShrink" target="{puzzlePiece}" startDelay="500">
+			<s:Parallel duration="400">
+				<s:Move xBy="{puzzlePiece.width / 2}" yBy="{puzzlePiece.height / 2}" />
+				<s:Scale scaleXBy="1.2" scaleYBy="1.2" />
+			</s:Parallel>
+			<s:Parallel duration="800">
+				<s:Scale scaleXBy="-1.8" scaleYBy="-1.8" />
+				<s:Move xTo="5" yTo="5" />
+			</s:Parallel>
+		</s:Sequence>
+	</fx:Declarations>
+	
+	<s:layout>
+		<s:VerticalLayout gap="70" verticalAlign="top" horizontalAlign="center" 
+						  paddingTop="4" paddingLeft="30" paddingRight="30" />
+	</s:layout>
+	
+	<s:Label text="My Homework" fontSize="70" width="100%" textAlign="right" />
+	
+	<s:List dataProvider="{new ArrayCollection([{assignment:'Try creating your own song',info:'Due next week'}, 
+												{assignment:'Guess 10 notes correctly',info:'Due next week'}])}"
+			 itemRenderer="org.muzika.components.AssignmentItemRenderer" width="100%">
+		<s:layout>
+			<s:VerticalLayout gap="10" />
+		</s:layout>
+	</s:List>
+	
+	<components:BottomRightButton label="Back" click="goToView('homeView')" />
+</s:NavigatorContent>

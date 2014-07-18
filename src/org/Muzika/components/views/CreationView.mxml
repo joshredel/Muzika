@@ -1,0 +1,554 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:NavigatorContent xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					xmlns:s="library://ns.adobe.com/flex/spark" 
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:components="org.muzika.components.*"
+					width="100%" height="100%" 
+					show="setup()" hide="clean();endSession()">
+	
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			
+			import org.muzika.components.DisplayNote;
+			import org.muzika.components.NoteValueOverlay;
+			import org.muzika.components.PuzzlePiece;
+			import org.muzika.events.NoteEvent;
+			import org.muzika.vo.User;
+			import org.tuio.TuioEvent;
+			import org.tuio.TuioManager;
+			import org.tuio.TuioObject;
+			
+			/**
+			 * Whether this has been viewed yet (for puzzle).
+			 */
+			private var hasBeenViewed:Boolean = false;
+			
+			[Bindable]
+			/**
+			 * The reward for this area.
+			 */
+			private var puzzlePiece:PuzzlePiece;
+			
+			/**
+			 * The function to call when we select an app.
+			 */
+			public var goToFunction:Function;
+			
+			/**
+			 * The TUIO manager that we are using to listen to fiducial events.
+			 */
+			private var fidManager:TuioManager;
+			
+			/**
+			 * The dictionary of notes (fiducials) to their matching display note.
+			 */
+			private var noteToDisplayDictionary:Dictionary;
+			
+			/**
+			 * The collection of notes that should be played.
+			 */
+			private var notesToPlay:ArrayCollection;
+			
+			[Bindable]
+			/**
+			 * The current tempo to play at.
+			 */
+			private var currentTempoString:String = "--|--";
+			
+			/**
+			 * Sets up the music sheet for listen for fiducials.
+			 */
+			private function setup():void {
+				if(!hasBeenViewed) {
+					//Alert.show("You've explored a new area!  Nice job.  Check out your prize in 'My Unlocked Levels!'");
+					// create a puzzle piece, then pop it for the user to see
+					puzzlePiece = new PuzzlePiece();
+					puzzlePiece.pieceNumber = 2;
+					puzzlePiece.reason = "This was your first time creating your own song!  Exploring everything in Muzika will let you make " +
+						"bigger and better puzzles.";
+					puzzlePiece.includeInLayout = false;
+					this.addElement(puzzlePiece);
+					
+					// position and animate
+					puzzlePiece.x = (this.width - puzzlePiece.width) / 2 - 150;
+					puzzlePiece.y = (this.height - puzzlePiece.height) / 2 - 150;
+					popAndShrink.play();
+				}
+				hasBeenViewed = true;
+				
+				// get the Singleton instance
+				fidManager = TuioManager.getInstance();
+				
+				// create the note to display note dictionary
+				noteToDisplayDictionary = new Dictionary();
+				
+				// listen for object events
+				fidManager.addEventListener(TuioEvent.ADD_OBJECT, noteAddedHandler);
+				fidManager.addEventListener(TuioEvent.UPDATE_OBJECT, noteUpdatedHandler);
+				fidManager.addEventListener(TuioEvent.REMOVE_OBJECT, noteRemovedHandler);
+			}
+			
+			/**
+			 * Stops listening for fiducial events.
+			 */
+			private function endSession():void {
+				// remove all handlers
+				fidManager.removeEventListener(TuioEvent.ADD_OBJECT, noteAddedHandler);
+				fidManager.removeEventListener(TuioEvent.UPDATE_OBJECT, noteUpdatedHandler);
+				fidManager.removeEventListener(TuioEvent.REMOVE_OBJECT, noteRemovedHandler);
+				
+				// destroy our reference to the instance
+				fidManager = null;
+				
+				// remove all notes and empty the dictionary
+//				for(var i:int = 0; i < noteHolder.numChildren; i++) {
+//					noteHolder.removeChildAt(i);
+//				}
+//				for(var j:int = 0; j < scoreContainer.numChildren; j++) {
+//					scoreContainer.removeChildAt(j);
+//				}
+				scoreContainer.removeAllElements();
+				noteHolder.removeAllElements();
+				noteToDisplayDictionary = null;
+				
+				// clear the feedback
+				feedback.text = "";
+				
+				// reset the tempo
+				currentTempoString = "--|--";
+			}
+			
+			/**
+			 * Removes the puzzle piece.
+			 */
+			private function clean():void {
+				var found:Boolean = false;
+				for(var i:int = 0; i < this.numElements; i++) {
+					if(this.getElementAt(i) == puzzlePiece) {
+						found = true;
+						break;
+					}
+				}
+				if(found) {
+					this.removeElement(puzzlePiece);
+				}
+			}
+			
+			/**
+			 * Handles a note fiducial being added to the screen.
+			 * Adds a note to the screen.
+			 */
+			private function noteAddedHandler(event:TuioEvent):void {
+				trace("a note was added");
+				// get the object from the event
+				var fid:TuioObject = event.tuioContainer as TuioObject;
+				
+				// add a display note to the stage
+				var displayNote:DisplayNote = new DisplayNote();
+				noteHolder.addElement(displayNote);
+				
+				// add a note value overlay to the score
+				var noteValueOverlay:NoteValueOverlay = new NoteValueOverlay();
+				scoreContainer.addElement(noteValueOverlay);
+				displayNote.noteValueOverlay = noteValueOverlay;
+				noteValueOverlay.displayNote = displayNote;
+				noteValueOverlay.addEventListener(NoteEvent.DELETE_NOTE, function(event:NoteEvent):void {
+					// get the overlay from the event
+					var overlay:NoteValueOverlay = event.target as NoteValueOverlay;
+					
+					// remove that display note from the screen and remove its reference in the dictionary
+					// if its note overlay is not visible (i.e. it can't fit on the staff)
+					if(overlay && overlay.displayNote) {
+						scoreContainer.removeElement(overlay);
+						noteHolder.removeElement(overlay.displayNote);
+						for(var fid:* in noteToDisplayDictionary) {
+							if(noteToDisplayDictionary[fid] == overlay.displayNote) {
+								delete noteToDisplayDictionary[fid];
+								break;
+							}
+						}
+					}
+				});
+				
+				// give the note its information
+				displayNote.note = fid;
+				
+				// store a mapping of the note to its display note
+				noteToDisplayDictionary[fid] = displayNote;
+				displayNote.refresh();
+				
+				// check to see if the note is overlapping another note
+				checkForOverlap(displayNote);
+			}
+			
+			/**
+			 * Handles a note fiducial being updated.
+			 * Matches the note on screen to the information from the update.
+			 */
+			private function noteUpdatedHandler(event:TuioEvent):void {
+				// get the object from the event
+				var fid:TuioObject = event.tuioContainer as TuioObject;
+				
+				// get the display note holding the updated note
+				var displayNote:DisplayNote = noteToDisplayDictionary[fid] as DisplayNote;
+				
+				// send the display note the updated note
+				if(displayNote) {
+					displayNote.note = fid;
+					
+					// refresh the note!
+					displayNote.refresh();
+					
+					// check to see if the note is overlapping another note
+					checkForOverlap(displayNote);
+				} else {
+					noteAddedHandler(event);
+				}
+			}
+			
+			/**
+			 * Checks if the passed note overlaps other notes.
+			 */
+			private function checkForOverlap(noteToCheck:DisplayNote):void {
+				// break if there isn't anything to check against or the overlay isn't visible
+				if(!noteToCheck || !noteToCheck.noteValueOverlay || !noteToCheck.noteValueOverlay.visible) {
+					return;
+				}
+				
+				// loop through each overlay in the score container
+				var overlaps:Boolean = false;
+				var checkOverlay:NoteValueOverlay = noteToCheck.noteValueOverlay;
+				for(var i:int = 0; i < scoreContainer.numElements; i++) {
+					// get that element and check for overlay if it isn't the overlay of the passed note
+					var overlay:NoteValueOverlay = scoreContainer.getElementAt(i) as NoteValueOverlay;
+					if(overlay != checkOverlay) {
+						if(overlay.x < checkOverlay.x + checkOverlay.width && overlay.x >= checkOverlay.x) {
+							overlaps = true;
+							break;
+						}
+					}
+				}
+				
+				// provide feedback
+				if(overlaps) {
+					// there is overlap; hide the note overlay
+					checkOverlay.visible = false;
+					
+					// provide feedback
+					feedback.text = "Those notes don't fit!";
+					feedback.setStyle("color", 0xFF0000);
+				} else {
+					// no overlap!
+					// clear feedback
+					feedback.text = "";
+				}
+			}
+			
+			/**
+			 * Handles a note fiducial being removed from the screen.
+			 * Removes a note from the screen if its overlay is hidden.
+			 * An overlay is hidden if it cannot fit on the screen.
+			 */
+			private function noteRemovedHandler(event:TuioEvent):void {
+				trace("a note was removed");
+				
+				// get the object from the event
+				var fid:TuioObject = event.tuioContainer as TuioObject;
+				
+				// get the display note holding the updated note
+				var displayNote:DisplayNote = noteToDisplayDictionary[fid] as DisplayNote;
+				
+				// remove that display note from the screen and remove its reference in the dictionary
+				// if its note overlay is not visible (i.e. it can't fit on the staff)
+				if(displayNote && displayNote.noteValueOverlay && displayNote.noteValueOverlay.visible == false) {
+					scoreContainer.removeElement(displayNote.noteValueOverlay);
+					noteHolder.removeElement(displayNote);
+					delete noteToDisplayDictionary[fid];
+				}
+			}
+			
+			/**
+			 * Go to the app that was clicked on.
+			 */
+			private function goToView(appName:String):void {
+				try {
+					goToFunction(appName);
+				} catch(e:Error) {
+					trace("Go to function not defined...");
+				}
+			}
+			
+			/**
+			 * Saves the song.
+			 */
+			private function saveSong():void {
+				if(noteHolder.numChildren > 0) {
+					Alert.show("Cool!  Your song has been saved!  Would you like to create another song?", "", Alert.YES | Alert.NO, null, handleAlertResponse);
+				} else {
+					Alert.show("Oops!  Put some notes on the score before you try to save!");
+				}
+			}
+			
+			/**
+			 * Resets the session if they want to create another song; goes home otherwise.
+			 */
+			private function handleAlertResponse(event:CloseEvent):void {
+				if(event.detail == Alert.YES) {
+					// make a new creation session
+					endSession();
+					setup();
+				} else {
+					// go home!
+					goToView('homeView');
+				}
+			}
+			
+			/**
+			 * Plays back the song based on the position of the notes on screen.
+			 */
+			private function replaySong():void {
+				if(noteHolder.numChildren > 0) {
+					// get all notes
+					var displayNotes:ArrayCollection = new ArrayCollection();
+					for(var i:int = 0; i < noteHolder.numChildren; i++) {
+						displayNotes.addItem(noteHolder.getChildAt(i));
+					}
+					
+					// determine which is the leftmost
+					notesToPlay = new ArrayCollection();
+					
+					// loop until we've collected them all
+					while(displayNotes.length > 0) {
+						var currentLowX:Number = displayNotes.getItemAt(0).x;
+						var currentLowDisplayNote:DisplayNote = displayNotes.getItemAt(0) as DisplayNote;
+						
+						// go through each and see if we have a more left note
+						for each(var displayNote:DisplayNote in displayNotes) {
+							if(displayNote.x < currentLowX) {
+								currentLowX = displayNote.x;
+								currentLowDisplayNote = displayNote;
+							}
+						}
+						
+						// remove the leftmost and add it to the playlist
+						notesToPlay.addItem(currentLowDisplayNote);
+						displayNotes.removeItemAt(displayNotes.getItemIndex(currentLowDisplayNote));
+					}
+					
+					// play it back, one at a time
+					playNote();
+					
+//					for each(var playingNote:DisplayNote in toPlay) {
+//						trace("playing: " + playingNote.note.classID);
+//					}
+				} else {
+					Alert.show("Oops!  Put some notes on the score before you try to replay!");
+				}
+			}
+			
+			/**
+			 * Plays the next note in the queue and schedules the one after that.
+			 */
+			private function playNote(event:Event = null):void {
+				if(notesToPlay && notesToPlay.length > 0) {
+					// get the first element
+					var displayNote:DisplayNote = notesToPlay.removeItemAt(0) as DisplayNote;
+					if(!displayNote.noteValueOverlay) {
+						return;
+					}
+					
+					// get the tempo from the tempo string 
+					var tempo:Number;
+					switch(currentTempoString) {
+						case "|----":
+							tempo = 3000;
+							break;
+						
+						case "-|---":
+							tempo = 2400;
+							break;
+						
+						case "--|--":
+							tempo = 1600;
+							break;
+						
+						case "---|-":
+							tempo = 1300;
+							break;
+						
+						case "----|":
+							tempo = 1000;
+							break;
+					}
+					
+					// play it
+					displayNote.playSound(tempo);
+					
+					// wait to play the next one, based on the notes value
+					var waitTime:Number = tempo * displayNote.noteValueOverlay.noteValue;
+					var timer:Timer = new Timer(waitTime, 1);
+					timer.addEventListener(TimerEvent.TIMER_COMPLETE, playNote);
+					timer.start();
+				}
+			}
+			
+			/**
+			 * Asks the student if they really want to clean up.
+			 */
+			private function askToClean():void {
+				Alert.show("If you clean up, your creation will be gone!  Do you want to clean up?", "", Alert.YES | Alert.NO, null, handleCleanUp);
+			}
+			
+			/**
+			 * Handles a cleanup response.
+			 */
+			private function handleCleanUp(event:CloseEvent):void {
+				if(event.detail == Alert.YES) {
+					endSession();
+					setup();
+				}
+			}
+			
+			/**
+			 * Increases the tempo.
+			 */
+			private function increaseTempo():void {
+				switch(currentTempoString) {
+					case "|----":
+						currentTempoString = "-|---";
+						break;
+					
+					case "-|---":
+						currentTempoString = "--|--";
+						break;
+					
+					case "--|--":
+						currentTempoString = "---|-";
+						break;
+					
+					case "---|-":
+						currentTempoString = "----|";
+						break;
+				}
+			}
+			
+			/**
+			 * Descreases the tempo.
+			 */
+			private function decreaseTempo():void {
+				switch(currentTempoString) {
+					case "----|":
+						currentTempoString = "---|-";
+						break;
+					
+					case "---|-":
+						currentTempoString = "--|--";
+						break;
+					
+					case "--|--":
+						currentTempoString = "-|---";
+						break;
+					
+					case "-|---":
+						currentTempoString = "|----";
+						break;
+				}
+			}
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<s:Sequence id="popAndShrink" target="{puzzlePiece}" startDelay="500">
+			<s:Parallel duration="400">
+				<s:Move xBy="{puzzlePiece.width / 2}" yBy="{puzzlePiece.height / 2}" />
+				<s:Scale scaleXBy="1.2" scaleYBy="1.2" />
+			</s:Parallel>
+			<s:Parallel duration="800">
+				<s:Scale scaleXBy="-1.8" scaleYBy="-1.8" />
+				<s:Move xTo="5" yTo="5" />
+			</s:Parallel>
+		</s:Sequence>
+	</fx:Declarations>
+	
+	<s:layout>
+		<s:VerticalLayout gap="-5" verticalAlign="top" horizontalAlign="right" 
+						  paddingTop="4" paddingLeft="30" paddingRight="30" />
+	</s:layout>
+	
+	<s:Label text="Create Your Own Song" fontSize="70" />
+	
+	<s:Label id="feedback" fontSize="45" includeInLayout="false" x="252" y="630" width="600" height="60" />
+	
+	<!-- The tempo area -->
+	<s:HGroup x="700" y="630" width="324" height="60" includeInLayout="false" verticalAlign="middle">
+		<s:Label text="Tempo:" fontSize="24" />
+		
+		<!--<s:Button label="Slower" height="60" enabled="{currentTempoString != '|'}" click="decreaseTempo()" />-->
+		<s:BorderContainer width="70" height="60" borderColor="0x494949" borderStyle="solid" borderWeight="3"
+						   click="decreaseTempo()" enabled="{currentTempoString != '|----'}">
+			<s:layout>
+				<s:VerticalLayout verticalAlign="middle" horizontalAlign="center" />
+			</s:layout>
+			
+			<s:Label text="Slower" fontSize="16" />
+		</s:BorderContainer>
+		
+		<s:Label text="{currentTempoString}" fontSize="34" />
+		
+		<!--<s:Button label="Faster" height="60" enabled="{currentTempoString != '|'}" click="increaseTempo()" />-->
+		<s:BorderContainer width="70" height="60" borderColor="0x494949" borderStyle="solid" borderWeight="3"
+						   click="increaseTempo()" enabled="{currentTempoString != '----|'}">
+			<s:layout>
+				<s:VerticalLayout verticalAlign="middle" horizontalAlign="center" />
+			</s:layout>
+			
+			<s:Label text="Delete" fontSize="16" />
+		</s:BorderContainer>
+	</s:HGroup>
+	
+	<!-- The object that holds the note value overlay objects -->
+	<s:Group id="scoreContainer" x="252" y="164" width="772" height="418" includeInLayout="false" />
+	
+	<!-- The background image (a picture of a clef + bars) -->
+	<mx:Image source="/assets/images/score.png" x="0" y="9" width="1024" height="750" includeInLayout="false" mouseEnabled="false" mouseChildren="false" />
+	
+	<!-- The stage-sized object that holds any notes that come on screen -->
+	<s:Group id="noteHolder" x="0" y="0" width="1024" height="768" includeInLayout="false" />
+	
+	<!-- Buttons -->
+	<s:BorderContainer width="200" height="50" includeInLayout="false" x="236" y="721"
+					   borderColor="0x494949" borderStyle="solid" borderWeight="3"
+					   click="askToClean()">
+		<s:layout>
+			<s:VerticalLayout verticalAlign="middle" horizontalAlign="center" />
+		</s:layout>
+		
+		<s:Label text="Clean Up" fontSize="24" />
+	</s:BorderContainer>
+	<s:BorderContainer width="200" height="50" includeInLayout="false" x="433" y="721"
+					   borderColor="0x494949" borderStyle="solid" borderWeight="3"
+					   click="saveSong()">
+		<s:layout>
+			<s:VerticalLayout verticalAlign="middle" horizontalAlign="center" />
+		</s:layout>
+		
+		<s:Label text="Save" fontSize="24" />
+	</s:BorderContainer>
+	<s:BorderContainer width="200" height="50" includeInLayout="false" x="630" y="721"
+					   borderColor="0x494949" borderStyle="solid" borderWeight="3"
+					   click="replaySong()">
+		<s:layout>
+			<s:VerticalLayout verticalAlign="middle" horizontalAlign="center" />
+		</s:layout>
+		
+		<s:Label text="Replay" fontSize="24" />
+	</s:BorderContainer>
+	<components:BottomRightButton label="Home" click="goToView('homeView')" width="200" />
+</s:NavigatorContent>

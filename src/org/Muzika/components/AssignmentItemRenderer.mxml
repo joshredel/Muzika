@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:ItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				xmlns:s="library://ns.adobe.com/flex/spark" 
+				xmlns:mx="library://ns.adobe.com/flex/mx" 
+				autoDrawBackground="true" width="100%" click="goToActivity()">
+	
+	<fx:Script>
+		<![CDATA[
+			
+			[Bindable]
+			/**
+			 * Whether this item has been selected already.
+			 */
+			private var hasBeenSelected:Boolean = false;
+			
+			/**
+			 * Goes to an activity.
+			 */
+			private function goToActivity():void {
+				var main:Muzika = this.parentApplication as Muzika;
+				if(data.assignment == "Try creating your own song") {
+					//go to create your own song
+					main.goToView("creationView");
+				} else {
+					// go to guess that note
+					main.goToView("guessView");
+				}
+				
+				// mark the activity as completed
+				hasBeenSelected = true;
+			} 
+		]]>
+	</fx:Script>
+	
+	<s:layout>
+		<s:HorizontalLayout verticalAlign="middle" />
+	</s:layout>
+	
+	<s:Rect width="35" height="35">
+		<s:stroke>
+			<s:SolidColorStroke weight="3" color="0x000000" />
+		</s:stroke>
+		<s:fill>
+			<s:SolidColor color="{hasBeenSelected ? 0x009900 : 0xFFFFFF}" />
+		</s:fill>
+	</s:Rect>
+	
+	<s:Label text="{data.assignment}" fontSize="30" width="100%" />
+	
+	<s:Label text="{hasBeenSelected ? 'Completed!' : data.info}" fontSize="30" />
+	
+</s:ItemRenderer>

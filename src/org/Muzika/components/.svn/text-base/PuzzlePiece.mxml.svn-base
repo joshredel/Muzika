@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="{puzzleImage.width * puzzleImage.scaleX}" 
+		 height="{puzzleImage.height * puzzleImage.scaleY + (reason == null ? 0 : infoLabel.height)}"
+		 click="showReason()" creationComplete="playGlow()">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.controls.Alert;
+			import mx.core.IUITextField;
+			
+			[Bindable]
+			/**
+			 * The puzzle piece number.
+			 */
+			public var pieceNumber:int;
+			
+			[Bindable]
+			/**
+			 * The reason the user was rewarded this puzzle piece.
+			 */
+			public var reason:String;
+			
+			/**
+			 * The note images.
+			 */
+			[Embed(source="assets/images/puzzle/1.gif")]
+			private var piece1:Class;
+			
+			[Embed(source="assets/images/puzzle/2.gif")]
+			private var piece2:Class;
+			
+			[Embed(source="assets/images/puzzle/3.gif")]
+			private var piece3:Class;
+			
+			[Embed(source="assets/images/puzzle/4.gif")]
+			private var piece4:Class;
+			
+			[Embed(source="assets/images/puzzle/5.gif")]
+			private var piece5:Class;
+			
+			[Embed(source="assets/images/puzzle/6.gif")]
+			private var piece6:Class;
+			
+			[Embed(source="assets/images/puzzle/7.gif")]
+			private var piece7:Class;
+			
+			[Embed(source="assets/images/puzzle/8.gif")]
+			private var piece8:Class;
+			
+			[Embed(source="assets/images/puzzle/9.gif")]
+			private var piece9:Class;
+			
+			/**
+			 * Plays the glow if their is a reason.
+			 */
+			private function playGlow():void {
+				if(reason && reason != "") {
+					glow.play();
+				}
+			}
+			
+			/**
+			 * Shows a message about why they got the prize.
+			 */
+			private function showReason():void {
+				if(reason && reason != "") {
+					var infoAlert:Alert = Alert.show("Awesome!  You did something special and won a puzzle piece.\n\n" + reason +
+						"\n\nWhen you're done here, you can check out your puzzle in 'My Unlocked Levels'");
+					infoAlert.width = 600;
+					callLater(function():void {
+						var textField:IUITextField =  IUITextField(infoAlert.mx_internal::alertForm.mx_internal::textField);
+						
+						var textFormat:TextFormat = new TextFormat();
+						textFormat.align = "left";
+						
+						textField.width = 590;
+						textField.x = 0;
+						textField.setTextFormat(textFormat);
+					});
+					if(glow.isPlaying) {
+						glow.stop();
+					}
+				}
+			}
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<s:Sequence id="glow" target="{puzzleImage}" repeatCount="0">
+			<mx:Glow color="0x000099" strength="3" alphaFrom="0" alphaTo="1" duration="2000" />
+			<mx:Glow color="0x000099" strength="3" alphaFrom="1" alphaTo="0" duration="2000" />
+		</s:Sequence>
+	</fx:Declarations>
+	
+	<mx:Image id="puzzleImage" source="{this['piece' + pieceNumber]}" scaleX="0.4" scaleY="0.4" />
+	
+	<s:Label id="infoLabel" text="New piece!" fontSize="40" color="0x000099" x="{(this.width - infoLabel.width) / 2}" y="{this.height - infoLabel.height}" 
+			 visible="{reason != null &amp;&amp; reason != ''}" includeInLayout="{reason != null &amp;&amp; reason != ''}" />
+</s:Group>

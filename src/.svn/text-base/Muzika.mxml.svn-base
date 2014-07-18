@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:WindowedApplication xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					   xmlns:s="library://ns.adobe.com/flex/spark" 
+					   xmlns:mx="library://ns.adobe.com/flex/mx"
+					   xmlns:views="org.muzika.components.views.*"
+					   width="1024" height="768" showStatusBar="false"
+					   applicationComplete="finish()" backgroundColor="0xFFFFFF"
+					   frameRate="60">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.binding.utils.ChangeWatcher;
+			import mx.controls.Alert;
+			
+			import org.muzika.vo.User;
+			import org.tuio.TuioClient;
+			import org.tuio.TuioManager;
+			import org.tuio.connectors.UDPConnector;
+			import org.tuio.debug.TuioDebug;
+			
+			[Bindable]
+			/**
+			 * A local reference to the currently logged in user.
+			 * Bound to the static variable on the User class.
+			 * Used because binding would not work properly with 
+			 * the loggedInUser variable of the User class.
+			 */
+			public var currentUser:User;
+			
+			/**
+			 * The TUIO manager that handles all fiducial events.
+			 */
+			public var fidManager:TuioManager;
+			
+			/**
+			 * Handles the application completing its loading process.
+			 * Puts the application full screen and prepares all components.
+			 */
+			private function finish():void {
+				// find the monitor to display on
+				// external monitor first, then primary monitor
+				if(Screen.screens.length > 1) {
+					this.nativeWindow.x = Screen.screens[1].bounds.x;
+					this.nativeWindow.y = Screen.screens[1].bounds.y;
+				}
+				
+				// let's go full screen
+				stage.displayState = StageDisplayState.FULL_SCREEN_INTERACTIVE;
+				// center the screen
+//				this.nativeWindow.x = (Screen.mainScreen.bounds.width - 1024) / 2;
+				
+				// watch for a user to login/logout
+				ChangeWatcher.watch(this, "currentUser", handleUserChange);
+				
+				// setup the alert boxes
+				Alert.buttonWidth = 80;
+				Alert.buttonHeight = 50;
+				
+				// prepare the TUIO managers and information
+				var fidClient:TuioClient = new TuioClient(new UDPConnector());
+				fidManager = TuioManager.init(stage, fidClient);
+				fidManager.dispatchMouseEvents = true;
+				
+//				var test:TuioDebug = TuioDebug.init(stage);
+//				fidClient.addListener(test);
+			}
+			
+			/**
+			 * Goes to the home screen.
+			 */
+			private function handleUserChange(event:Event):void {
+				if(currentUser) {
+					goToView("homeView");
+				} else {
+					goToView("loginView");
+				}
+			}
+			
+			/**
+			 * Brings the user to the app they selected.
+			 */
+			public function goToView(appName:String):void {
+				try {
+					views.selectedChild = this[appName];
+				} catch(e:Error) {
+					trace("Invalid app selected '" + appName + "'...");
+				}
+			}
+		]]>
+	</fx:Script>
+	
+	<fx:Style source="assets/styles/muzika.css" />
+	
+	<fx:Binding source="User.loggedInUser" destination="this.currentUser" />
+	
+	<fx:Declarations>
+		<s:Parallel id="scaleOut" duration="600">
+			<s:Fade alphaFrom="1.0" alphaTo="0.0" />
+			<!--<s:Move3D zFrom="0" zTo="1200" />-->
+			<!--<s:Move xFrom="0" xTo="-1024" />-->
+		</s:Parallel>
+		
+		<s:Parallel id="scaleIn" duration="600">
+			<s:Fade alphaFrom="0.0" alphaTo="1.0" />
+			<!--<s:Move3D zFrom="-1200" zTo="0" />-->
+			<!--<s:Move xFrom="1024" xTo="0" />-->
+		</s:Parallel>
+	</fx:Declarations>
+	
+	<mx:ViewStack id="views" width="100%" height="100%" creationPolicy="all" clipContent="false" resizeToContent="true">
+		<views:LoginView id="loginView" goToFunction="{goToView}" showEffect="{scaleIn}" hideEffect="{scaleOut}" />
+		<views:CreateProfileView id="createProfileView" goToFunction="{goToView}" showEffect="{scaleIn}" hideEffect="{scaleOut}" />
+		<views:HomeView id="homeView" goToFunction="{goToView}" showEffect="{scaleIn}" hideEffect="{scaleOut}" />
+		<views:GuessView id="guessView" goToFunction="{goToView}" showEffect="{scaleIn}" hideEffect="{scaleOut}" />
+		<views:CreationView id="creationView" goToFunction="{goToView}" showEffect="{scaleIn}" hideEffect="{scaleOut}" />
+		<views:AssignmentsView id="assignmentsView" goToFunction="{goToView}" showEffect="{scaleIn}" hideEffect="{scaleOut}" />
+		<views:LevelsView id="levelsView" goToFunction="{goToView}" showEffect="{scaleIn}" hideEffect="{scaleOut}" />
+	</mx:ViewStack>
+</s:WindowedApplication>

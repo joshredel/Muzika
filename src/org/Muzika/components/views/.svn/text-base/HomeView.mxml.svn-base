@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:NavigatorContent xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					xmlns:s="library://ns.adobe.com/flex/spark" 
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:components="org.muzika.components.*"
+					width="100%" height="100%">
+	
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import org.muzika.vo.User;
+			
+			/**
+			 * The function to call when we select an app.
+			 */
+			public var goToFunction:Function;
+			
+			/**
+			 * Go to the app that was clicked on.
+			 */
+			private function goToView(appName:String):void {
+				try {
+					goToFunction(appName);
+				} catch(e:Error) {
+					trace("Go to function not defined...");
+				}
+			}
+		]]>
+	</fx:Script>
+	
+	<s:layout>
+		<s:VerticalLayout gap="65" verticalAlign="top" horizontalAlign="center" 
+						  paddingTop="4" paddingLeft="30" paddingRight="30" />
+	</s:layout>
+	
+	<s:Label text="Welcome, {User.loggedInUser.profileName}!" fontSize="70" width="100%" textAlign="right" />
+	
+	<s:HGroup width="100%" horizontalAlign="center" gap="75">
+		<s:BorderContainer width="225" height="225" borderColor="0x494949" 
+						   borderStyle="solid" borderWeight="3" cornerRadius="8"
+						   click="goToView('creationView')" backgroundColor="0xB8EDFB">
+			<s:layout>
+				<s:VerticalLayout verticalAlign="middle" horizontalAlign="center" />
+			</s:layout>
+			
+			<mx:Image width="216" height="216" smoothBitmapContent="true" source="assets/images/home/create.png" />
+		</s:BorderContainer>
+		<!--<s:BorderContainer width="225" height="225" borderColor="0x494949" 
+						   borderStyle="solid" borderWeight="3" cornerRadius="8"
+						   click="goToView('playAlongView')">
+			<s:layout>
+				<s:VerticalLayout verticalAlign="middle" horizontalAlign="center" />
+			</s:layout>
+			
+			<mx:Image width="216" height="216" smoothBitmapContent="true" source="assets/images/home/play.png" />
+		</s:BorderContainer>-->
+		<s:BorderContainer width="225" height="225" borderColor="0x494949" 
+						   borderStyle="solid" borderWeight="3" cornerRadius="8"
+						   click="goToView('guessView')">
+			<s:layout>
+				<s:VerticalLayout verticalAlign="middle" horizontalAlign="center" />
+			</s:layout>
+			
+			<mx:Image width="216" height="216" smoothBitmapContent="true" source="assets/images/home/guess.png" />
+		</s:BorderContainer>
+	</s:HGroup>
+	
+	<s:HGroup width="100%" horizontalAlign="center" gap="75">
+		<s:BorderContainer width="225" height="225" borderColor="0x494949" 
+						   borderStyle="solid" borderWeight="3" cornerRadius="8"
+						   click="goToView('assignmentsView')">
+			<s:layout>
+				<s:VerticalLayout verticalAlign="middle" horizontalAlign="center" />
+			</s:layout>
+			
+			<mx:Image width="216" height="216" smoothBitmapContent="true" source="assets/images/home/assignments.png" />
+		</s:BorderContainer>
+		<s:BorderContainer width="225" height="225" borderColor="0x494949" 
+						   borderStyle="solid" borderWeight="3" cornerRadius="8"
+						   click="goToView('levelsView')">
+			<s:layout>
+				<s:VerticalLayout verticalAlign="middle" horizontalAlign="center" />
+			</s:layout>
+			
+			<mx:Image width="216" height="216" smoothBitmapContent="true" source="assets/images/home/levels.png" />
+		</s:BorderContainer>
+	</s:HGroup>
+	
+	<components:BottomRightButton label="Logout" click="User.loggedInUser = null" />
+</s:NavigatorContent>

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:NavigatorContent xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					xmlns:s="library://ns.adobe.com/flex/spark" 
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:components="org.muzika.components.*"
+					width="100%" height="100%" hide="clean()">
+	
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import org.muzika.vo.User;
+			
+			/**
+			 * The function to call when we select an app.
+			 */
+			public var goToFunction:Function;
+			
+			/**
+			 * Go to the app that was clicked on.
+			 */
+			private function goToView(appName:String):void {
+				try {
+					goToFunction(appName);
+				} catch(e:Error) {
+					trace("Go to function not defined...");
+				}
+			}
+			
+			/**
+			 * Clears the selected user in the user list.
+			 */
+			private function clean():void {
+				userList.selectedItem = null;
+			}
+		]]>
+	</fx:Script>
+	
+	<s:layout>
+		<s:VerticalLayout gap="150" verticalAlign="top" horizontalAlign="center" 
+						  paddingTop="4" paddingLeft="30" paddingRight="30" />
+	</s:layout>
+	
+	<s:Label text="Select Your Profile!" fontSize="70" width="100%" textAlign="right" />
+	
+	<s:List id="userList" width="100%" dataProvider="{User.users}" itemRenderer="org.muzika.components.ProfileItemRenderer">
+		<s:layout>
+			<s:TileLayout horizontalGap="30" verticalGap="30" />
+		</s:layout>
+	</s:List>
+	
+	<components:BottomRightButton label="Create New Profile" click="goToView('createProfileView')" />
+</s:NavigatorContent>

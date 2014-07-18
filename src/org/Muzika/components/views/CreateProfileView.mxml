@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:NavigatorContent xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					xmlns:s="library://ns.adobe.com/flex/spark" 
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:components="org.muzika.components.*"
+					width="100%" height="100%" hide="clean()">
+	
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			
+			import org.muzika.components.DisplayNote;
+			import org.muzika.components.NoteValueOverlay;
+			import org.muzika.vo.User;
+			import org.tuio.TuioEvent;
+			import org.tuio.TuioManager;
+			import org.tuio.TuioObject;
+			
+			/**
+			 * The function to call when we select an app.
+			 */
+			public var goToFunction:Function;
+			
+			/**
+			 * Go to the app that was clicked on.
+			 */
+			private function goToView(appName:String):void {
+				try {
+					goToFunction(appName);
+				} catch(e:Error) {
+					trace("Go to function not defined...");
+				}
+			}
+			
+			/**
+			 * Creates the user.
+			 */
+			private function createUser():void {
+				if(usernameField.text == "" || !pictureList.selectedItem) {
+					Alert.show("Oops!  Make sure to enter your name and pick a picture!");
+					return;
+				}
+				
+				var newUser:User = new User(usernameField.text, pictureList.selectedItem as String);
+				goToView('loginView')
+			}
+			
+			/**
+			 * Cleans up the fields.
+			 */
+			private function clean():void {
+				usernameField.text = "";
+				pictureList.selectedItem = null;
+			}
+		]]>
+	</fx:Script>
+	
+	<s:layout>
+		<s:VerticalLayout gap="70" verticalAlign="top" horizontalAlign="center" 
+						  paddingTop="4" paddingLeft="30" paddingRight="30" />
+	</s:layout>
+	
+	<s:Label text="Create Your Profile" fontSize="70" width="100%" textAlign="right" />
+	
+	<s:HGroup verticalAlign="middle" width="100%">
+		<s:Label text="Your First Name:" fontSize="40" />
+		<s:TextInput id="usernameField" fontSize="40" width="100%" />
+	</s:HGroup>
+	
+	<s:Label text="Choose A Picture!" fontSize="40" width="100%" textAlign="left" />
+	
+	<s:List id="pictureList" width="100%" dataProvider="{new ArrayCollection(['horse', 'sports', 'music', 'icecream', 'dora', 'bob', 'bike'])}" 
+			 itemRenderer="org.muzika.components.ProfileImageItemRenderer">
+		<s:layout>
+			<s:TileLayout horizontalGap="30" verticalGap="30" />
+		</s:layout>
+	</s:List>
+	
+	<s:BorderContainer width="300" height="50" includeInLayout="false" x="430" y="721"
+					   borderColor="0x494949" borderStyle="solid" borderWeight="3"
+					   click="createUser()">
+		<s:layout>
+			<s:VerticalLayout verticalAlign="middle" horizontalAlign="center" />
+		</s:layout>
+		
+		<s:Label text="Accept" fontSize="24" />
+	</s:BorderContainer>
+	
+	<components:BottomRightButton label="Back" click="goToView('loginView')" />
+</s:NavigatorContent>

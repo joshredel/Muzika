@@ -1,0 +1,317 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:NavigatorContent xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					xmlns:s="library://ns.adobe.com/flex/spark" 
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:components="org.muzika.components.*"
+					width="100%" height="100%" 
+					show="setup()" hide="clean();endSession()">
+	
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			
+			import org.muzika.components.DisplayNote;
+			import org.muzika.components.NoteValueOverlay;
+			import org.muzika.components.PuzzlePiece;
+			import org.muzika.events.NoteEvent;
+			import org.muzika.vo.User;
+			import org.tuio.TuioEvent;
+			import org.tuio.TuioManager;
+			import org.tuio.TuioObject;
+			
+			/**
+			 * Whether this has been viewed yet (for puzzle).
+			 */
+			private var hasBeenViewed:Boolean = false;
+			
+			[Bindable]
+			/**
+			 * The reward for this area.
+			 */
+			private var puzzlePiece:PuzzlePiece;
+			
+			/**
+			 * The function to call when we select an app.
+			 */
+			public var goToFunction:Function;
+			
+			/**
+			 * The TUIO manager that we are using to listen to fiducial events.
+			 */
+			private var fidManager:TuioManager;
+			
+			/**
+			 * The dictionary of notes (fiducials) to their matching display note.
+			 */
+			private var noteToDisplayDictionary:Dictionary;
+			
+			/**
+			 * The random note selected for this session.
+			 */
+			private var randomNoteName:String;
+			
+			/**
+			 * Sets up the music sheet for listen for fiducials.
+			 */
+			private function setup():void {
+				if(!hasBeenViewed) {
+					//Alert.show("You've explored a new area!  Nice job.  Check out your prize in 'My Unlocked Levels!'");
+					// create a puzzle piece, then pop it for the user to see
+					puzzlePiece = new PuzzlePiece();
+					puzzlePiece.pieceNumber = 4;
+					puzzlePiece.reason = "This was your first time trying to guess a note.  Exploring everything in Muzika will let you make " +
+						"bigger and better puzzles.";
+					puzzlePiece.includeInLayout = false;
+					this.addElement(puzzlePiece);
+					
+					// position and animate
+					puzzlePiece.x = (this.width - puzzlePiece.width) / 2 - 150;
+					puzzlePiece.y = (this.height - puzzlePiece.height) / 2 - 150;
+					popAndShrink.play();
+				}
+				hasBeenViewed = true;
+				
+				// get the Singleton instance
+				fidManager = TuioManager.getInstance();
+				
+				// create the note to display note dictionary
+				noteToDisplayDictionary = new Dictionary();
+				
+				// listen for object events
+				fidManager.addEventListener(TuioEvent.ADD_OBJECT, noteAddedHandler);
+				fidManager.addEventListener(TuioEvent.UPDATE_OBJECT, noteUpdatedHandler);
+				fidManager.addEventListener(TuioEvent.REMOVE_OBJECT, noteRemovedHandler);
+				
+				// pick a random note
+				// create an array of possible notes
+				var availableNotes:Array = ["E3", "F3", "G3", "A4", "B4", "C4", "D4", "E4", "F4"];
+				
+				// get a randow value
+				var randomNoteLocation:Number = Math.floor(Math.random() * 9);
+				randomNoteName = availableNotes[randomNoteLocation];
+				
+				// play the note after a delay
+				var waitTimer:Timer = new Timer(1000, 1);
+				waitTimer.addEventListener(TimerEvent.TIMER_COMPLETE, function():void {
+					replayNote();
+				});
+				waitTimer.start();
+			}
+			
+			/**
+			 * Stops listening for fiducial events.
+			 */
+			private function endSession():void {
+				feedback.text = "";
+				
+				// remove all handlers
+				try {
+					fidManager.removeEventListener(TuioEvent.ADD_OBJECT, noteAddedHandler);
+					fidManager.removeEventListener(TuioEvent.UPDATE_OBJECT, noteUpdatedHandler);
+					fidManager.removeEventListener(TuioEvent.REMOVE_OBJECT, noteRemovedHandler);
+				} catch(e:Error) {}
+				
+				// destroy our reference to the instance
+				fidManager = null;
+				scoreContainer.removeAllElements();
+				noteHolder.removeAllElements();
+				noteToDisplayDictionary = null;
+			}
+			
+			/**
+			 * Removes the puzzle piece.
+			 */
+			private function clean():void {
+				var found:Boolean = false;
+				for(var i:int = 0; i < this.numElements; i++) {
+					if(this.getElementAt(i) == puzzlePiece) {
+						found = true;
+						break;
+					}
+				}
+				if(found) {
+					this.removeElement(puzzlePiece);
+				}
+			}
+			
+			/**
+			 * Handles a note fiducial being added to the screen.
+			 * Adds a note to the screen.
+			 */
+			private function noteAddedHandler(event:TuioEvent):void {
+				if(noteHolder.numChildren > 0) {
+					// clean up, then add
+					endSession();
+					setup();
+				}
+				
+				trace("a note was added");
+				// get the object from the event
+				var fid:TuioObject = event.tuioContainer as TuioObject;
+				
+				// add a display note to the stage
+				var displayNote:DisplayNote = new DisplayNote();
+				noteHolder.addElement(displayNote);
+				
+				// add a note value overlay to the score
+				var noteValueOverlay:NoteValueOverlay = new NoteValueOverlay();
+				scoreContainer.addElement(noteValueOverlay);
+				displayNote.noteValueOverlay = noteValueOverlay;
+				
+				// give the note its information
+				displayNote.note = fid;
+				
+				// store a mapping of the note to its display note
+				noteToDisplayDictionary[fid] = displayNote;
+				displayNote.refresh();
+			}
+			
+			/**
+			 * Handles a note fiducial being updated.
+			 * Matches the note on screen to the information from the update.
+			 */
+			private function noteUpdatedHandler(event:TuioEvent):void {
+				// get the object from the event
+				var fid:TuioObject = event.tuioContainer as TuioObject;
+				
+				// get the display note holding the updated note
+				var displayNote:DisplayNote = noteToDisplayDictionary[fid] as DisplayNote;
+				
+				// send the display note the updated note
+				if(displayNote) {
+					displayNote.note = fid;
+					
+					// refresh the note!
+					displayNote.refresh();
+				} else {
+					noteAddedHandler(event);
+				}
+				
+				// see if the note is at the right place!
+				if(displayNote && displayNote.noteName != "") {
+					if(displayNote.noteName == randomNoteName) {
+						// they got the right note... see if they want to guess another!
+						fidManager.removeEventListener(TuioEvent.UPDATE_OBJECT, noteUpdatedHandler);
+						Alert.show("Awesome!  You got the note right!  Check out your prize in 'My Unlocked Levels!'  Would you like to guess another note?", "", Alert.YES | Alert.NO, null, handleRetryAnswer);
+						feedback.text = "Perfect!";
+						feedback.setStyle("color", 0x00FF00);
+					} else if(displayNote.noteName == "E3" ||
+							  displayNote.noteName == "F3" ||
+							  displayNote.noteName == "G3") {
+						feedback.text = "Too low, keep trying!";
+						feedback.setStyle("color", 0xFF0000);
+					} else {
+						feedback.text = "Too high, keep trying!";
+						feedback.setStyle("color", 0xFF0000);
+					}
+				} else if(displayNote && displayNote.noteName == "") {
+					feedback.text = "";
+				}
+			}
+			
+			/**
+			 * Handles a yes or no to trying to guess another note.
+			 */
+			private function handleRetryAnswer(event:CloseEvent):void {
+				if(event.detail == Alert.YES) {
+					// clean up!
+					endSession();
+					setup();
+				} else {
+					// go home
+					goToView('homeView')
+				}
+			}
+			
+			/**
+			 * Handles a note fiducial being removed from the screen.
+			 * Removes a note from the screen.
+			 */
+			private function noteRemovedHandler(event:TuioEvent):void {
+				trace("a note was removed");
+				// get the object from the event
+				var fid:TuioObject = event.tuioContainer as TuioObject;
+				
+				// get the display note holding the updated note
+				var displayNote:DisplayNote = noteToDisplayDictionary[fid] as DisplayNote;
+				
+				// remove that display note from the screen and remove its reference in the dictionary
+				if(displayNote) {
+					scoreContainer.removeElement(displayNote.noteValueOverlay);
+					noteHolder.removeElement(displayNote);
+					delete noteToDisplayDictionary[fid];
+				}
+			}
+			
+			/**
+			 * Go to the app that was clicked on.
+			 */
+			private function goToView(appName:String):void {
+				try {
+					goToFunction(appName);
+				} catch(e:Error) {
+					trace("Go to function not defined...");
+				}
+			}
+			
+			/**
+			 * Replays the note to guess.
+			 */
+			private function replayNote():void {
+				// play the selected note
+				var snd:Sound = new Sound(new URLRequest("assets/sounds/quarter/" + randomNoteName + ".mov"));
+				snd.play();
+			}
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<s:Sequence id="popAndShrink" target="{puzzlePiece}" startDelay="500">
+			<s:Parallel duration="400">
+				<s:Move xBy="{puzzlePiece.width / 2}" yBy="{puzzlePiece.height / 2}" />
+				<s:Scale scaleXBy="1.2" scaleYBy="1.2" />
+			</s:Parallel>
+			<s:Parallel duration="800">
+				<s:Scale scaleXBy="-1.8" scaleYBy="-1.8" />
+				<s:Move xTo="5" yTo="5" />
+			</s:Parallel>
+		</s:Sequence>
+	</fx:Declarations>
+	
+	<s:layout>
+		<s:VerticalLayout gap="-5" verticalAlign="top" horizontalAlign="right" 
+						  paddingTop="4" paddingLeft="30" paddingRight="30" />
+	</s:layout>
+	
+	<s:Label text="Guess That Note" fontSize="70" />
+	<s:Label text="Match the note you hear." fontSize="35" />
+	
+	<s:Label id="feedback" fontSize="45" includeInLayout="false" x="252" y="630" width="600" height="60" />
+	
+	<!-- The object that holds the note value overlay objects -->
+	<s:Group id="scoreContainer" x="252" y="164" width="772" height="418" includeInLayout="false" />
+	
+	<!-- The background image (a picture of a clef + bars) -->
+	<mx:Image source="/assets/images/score.png" x="0" y="9" width="1024" height="750" includeInLayout="false" />
+	
+	<!-- The stage-sized object that holds any notes that come on screen -->
+	<s:Group id="noteHolder" x="0" y="0" width="1024" height="768" includeInLayout="false" />
+	
+	<!-- Buttons -->
+	<s:BorderContainer width="400" height="50" includeInLayout="false" x="430" y="721"
+					   borderColor="0x494949" borderStyle="solid" borderWeight="3"
+					   click="replayNote()">
+		<s:layout>
+			<s:VerticalLayout verticalAlign="middle" horizontalAlign="center" />
+		</s:layout>
+		
+		<s:Label text="Hear The Note Again" fontSize="24" />
+	</s:BorderContainer>
+	<components:BottomRightButton label="Home" click="goToView('homeView')" width="200" />
+</s:NavigatorContent>

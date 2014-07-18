@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 width="225" height="225" horizontalAlign="center">
+	
+	<fx:Script>
+		<![CDATA[
+			import org.muzika.vo.User;
+			
+			[Bindable]
+			/**
+			 * The name of the mode.
+			 */
+			public var modeName:String;
+		]]>
+	</fx:Script>
+	
+	<s:BorderContainer width="225" height="225" borderColor="0x494949" 
+					   borderStyle="solid" borderWeight="3" cornerRadius="8">
+		<s:layout>
+			<s:VerticalLayout verticalAlign="middle" horizontalAlign="center" />
+		</s:layout>
+		
+		<s:Label text="{modeName}" />
+	</s:BorderContainer>
+</s:VGroup>

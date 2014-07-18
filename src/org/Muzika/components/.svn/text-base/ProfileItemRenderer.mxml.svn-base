@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:ItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 width="150" height="175" click="User.loggedInUser = data as User"><!--click="data.remove()"-->
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.utils.ObjectProxy;
+			
+			import org.muzika.vo.User;
+			
+		]]>
+	</fx:Script>
+	
+	<s:layout>
+		<s:VerticalLayout horizontalAlign="center" />
+	</s:layout>
+	
+	<s:BorderContainer width="150" height="150" borderColor="0x494949" 
+					   borderStyle="solid" borderWeight="3" cornerRadius="8">
+		<s:layout>
+			<s:VerticalLayout verticalAlign="middle" horizontalAlign="center" />
+		</s:layout>
+		
+		<!--<s:Label text="{data.pictureName}" />-->
+		<mx:Image width="140" height="140" smoothBitmapContent="true" source="assets/images/icons/{data.pictureName}.png" />
+	</s:BorderContainer>
+	
+	<s:Label text="{data.profileName}"  fontSize="17" />
+</s:ItemRenderer>

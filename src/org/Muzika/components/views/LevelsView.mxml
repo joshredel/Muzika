@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:NavigatorContent xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					xmlns:s="library://ns.adobe.com/flex/spark" 
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:components="org.muzika.components.*"
+					width="100%" height="100%" creationComplete="addPuzzlePieces()">
+	
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.Image;
+			import mx.managers.DragManager;
+			
+			import org.muzika.components.DisplayNote;
+			import org.muzika.components.NoteValueOverlay;
+			import org.muzika.components.PuzzlePiece;
+			import org.muzika.vo.User;
+			import org.tuio.TuioEvent;
+			import org.tuio.TuioManager;
+			import org.tuio.TuioObject;
+			
+			/**
+			 * The function to call when we select an app.
+			 */
+			public var goToFunction:Function;
+			
+			/**
+			 * Whether or not the pieces have been laid out.
+			 */
+			public var hasSetup:Boolean = false;
+			
+			/**
+			 * The puzzle images.
+			 */
+			[Embed(source="assets/images/puzzle/1.png")]
+			private var puzzle1:Class;
+			
+			[Embed(source="assets/images/puzzle/2.png")]
+			private var puzzle2:Class;
+			
+			[Embed(source="assets/images/puzzle/3.png")]
+			private var puzzle3:Class;
+			
+			[Embed(source="assets/images/puzzle/4.png")]
+			private var puzzle4:Class;
+			
+			[Embed(source="assets/images/puzzle/5.png")]
+			private var puzzle5:Class;
+			
+			/**
+			 * Go to the app that was clicked on.
+			 */
+			private function goToView(appName:String):void {
+				try {
+					goToFunction(appName);
+				} catch(e:Error) {
+					trace("Go to function not defined...");
+				}
+			}
+			
+			/**
+			 * Lays out the puzzle pieces.
+			 */
+			private function addPuzzlePieces():void {
+				if(!hasSetup) {
+					for(var i:int = 0; i < 5; i++) {
+						var piece:PuzzlePiece = new PuzzlePiece();
+						piece.pieceNumber = i + 1;
+						piece.addEventListener(MouseEvent.MOUSE_DOWN, startPuzzleDrag);
+						puzzleCanvas.addElement(piece);
+						
+						piece.x = Math.random() * 700;
+						piece.y = Math.random() * 500;
+					}
+					
+					hasSetup = true;
+				}
+			}
+			
+			/**
+			 * Starts a drag of the puzzle piece.
+			 */
+			private function startPuzzleDrag(event:MouseEvent):void {
+				// get the dragged image
+				var piece:PuzzlePiece = event.currentTarget as PuzzlePiece;
+				piece.startDrag();
+				
+				// add mouse events
+				piece.addEventListener(MouseEvent.MOUSE_UP, endDrag);
+			}
+			
+			/**
+			 * End the drag.
+			 */
+			private function endDrag(event:MouseEvent):void {
+				// get the dragged image
+				var piece:PuzzlePiece = event.currentTarget as PuzzlePiece;
+				piece.stopDrag();
+				
+				// remove the mouse events
+				piece.removeEventListener(MouseEvent.MOUSE_UP, endDrag);
+			}
+		]]>
+	</fx:Script>
+	
+	<s:layout>
+		<s:VerticalLayout gap="70" verticalAlign="top" horizontalAlign="center" 
+						  paddingTop="4" paddingLeft="30" paddingRight="30" />
+	</s:layout>
+	
+	<s:Label text="My Unlocked Levels!" fontSize="70" width="100%" textAlign="right" />
+	
+	<!--<mx:UIComponent id="puzzleCanvas" width="100%" height="100%" />-->
+	<s:Group id="puzzleCanvas" width="100%" height="100%" />
+	
+	<components:BottomRightButton label="Back" click="goToView('homeView')" />
+</s:NavigatorContent>

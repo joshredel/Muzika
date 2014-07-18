@@ -1,0 +1,326 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="88" height="88" creationComplete="finish()"> 
+		 <!--width="100%" height="418"-->
+	
+	<fx:Script>
+		<![CDATA[
+			import org.tuio.TuioObject;
+			
+			import spark.filters.ColorMatrixFilter;
+			
+			[Bindable]
+			/**
+			 * The fiducial object that is represented by this display note.
+			 */
+			public var note:TuioObject;
+			
+			[Bindable]
+			/**
+			 * The note value overlay display object that is representing 
+			 * the note value of this display note's note's note value.
+			 */
+			public var noteValueOverlay:NoteValueOverlay;
+			
+			/**
+			 * The width of the score area.
+			 */
+			private const SCORE_WIDTH:Number = 772;
+			
+			[Bindable]
+			/**
+			 * The colour for the background.
+			 */
+			public var colour:Number;
+			
+			/**
+			 * The note name (e.g. A2, B2, C3, etc.)
+			 */
+			private var _noteName:String;
+			
+			/**
+			 * The sound that plays the note.
+			 */
+			private var noteSoundChannel:SoundChannel;
+			
+			/**
+			 * The timer that manages how long the note plays.
+			 */
+			private var soundTimer:Timer;
+			
+			/**
+			 * The sounds.
+			 */
+			[Embed(source="assets/sounds/trimmable/E3.mp3")]
+			private var E3Sound:Class;
+			
+			[Embed(source="assets/sounds/trimmable/F3.mp3")]
+			private var F3Sound:Class;
+			
+			[Embed(source="assets/sounds/trimmable/G3.mp3")]
+			private var G3Sound:Class;
+			
+			[Embed(source="assets/sounds/trimmable/A4.mp3")]
+			private var A4Sound:Class;
+			
+			[Embed(source="assets/sounds/trimmable/B4.mp3")]
+			private var B4Sound:Class;
+			
+			[Embed(source="assets/sounds/trimmable/C4.mp3")]
+			private var C4Sound:Class;
+			
+			[Embed(source="assets/sounds/trimmable/D4.mp3")]
+			private var D4Sound:Class;
+			
+			[Embed(source="assets/sounds/trimmable/E4.mp3")]
+			private var E4Sound:Class;
+			
+			[Embed(source="assets/sounds/trimmable/F4.mp3")]
+			private var F4Sound:Class;
+			
+			/**
+			 * Sets the note name and sounds a sound only if it
+			 * is not the same as the previous value.
+			 */
+			public function set noteName(newName:String):void {
+				// check if we have a different note name
+				if(newName != _noteName) {
+					// we do, so store it
+					_noteName = newName;
+					
+					// make a sound!
+					playSound();
+				}
+			}
+			
+			/**
+			 * Gets the note name.
+			 */
+			public function get noteName():String {
+				return _noteName;
+			}
+			
+			[Bindable]
+			/**
+			 * The name of the image which we load for the different note values.
+			 */
+			private var imageName:String = "quarterNote.png";
+			
+			/**
+			 * Handles the creation of this object completing.
+			 * Populates information based on our note.
+			 */
+			private function finish():void {
+				// wait if we don't yet have a note
+				if(!note || !noteValueOverlay) {
+					callLater(finish);
+				}
+				
+				// set the colour
+//				switch(note.classID) {
+//					case 0:
+//						colour = 0x0000FF;
+//						break;
+//					
+//					case 1:
+//						colour = 0xFF0000;
+//						break;
+//					
+//					case 2:
+//						colour = 0xFFFF00;
+//						break;
+//					
+//					default:
+//						colour = 0x999999;
+//						break;		
+//				}
+				colour = Math.round(Math.random() * 0xFFFFFF)
+				noteValueOverlay.colour = colour;
+			}
+			
+			/**
+			 * Plays the note sound.
+			 */
+			public function playSound(tempo:Number = 1600):void {
+				if(_noteName != "") {
+					trace("sound: " + _noteName);
+					if(noteValueOverlay) {
+						var noteValue:String;
+						switch(noteValueOverlay.noteValue) {
+							case 1.00:
+								noteValue = "whole";
+								break;
+							
+							case 0.50:
+								noteValue = "half";
+								break;
+							
+							case 0.25:
+								noteValue = "quarter";
+								break;	
+						}
+						if(soundTimer) {
+							soundTimer.stop();
+						}
+						if(noteSoundChannel) {
+							noteSoundChannel.stop();
+						}
+						
+						//noteSound = new Sound(new URLRequest("assets/sounds/" + noteValue + "/" + _noteName + ".mov"));
+						//var sound:Sound = new Sound(new URLRequest("assets/sounds/trimmable/" + _noteName + ".mp3"));
+						var sound:Sound = new this[_noteName + 'Sound']() as Sound;
+						
+						// prepare the timer and play
+						soundTimer = new Timer(tempo * noteValueOverlay.noteValue, 1);
+						soundTimer.addEventListener(TimerEvent.TIMER_COMPLETE, function():void {
+							noteSoundChannel.stop();
+						});
+						noteSoundChannel = sound.play();
+						soundTimer.start();
+					}
+				}
+			}
+			
+			/**
+			 * Updates the display to reflect the new state of the note variable
+			 */
+			public function refresh():void {
+				if(note) {
+					// set the position
+					this.x = (note.x * 1024) - (this.width / 2);
+					this.y = (note.y * 768) - (this.height / 2);
+					
+					if(noteValueOverlay) {
+						// set the note value (using the a attribute which is the rotation in radians)
+						noteValueOverlay.noteValue = note.a;
+						
+						// position the overlay based on our position on the score and our note value
+						if(this.x >= 252 && this.x <= 1024 && this.y >= 99 && this.y <= 561) {
+							// we are inside the score container, so set the overlay
+							noteValueOverlay.visible = true;
+							switch(noteValueOverlay.noteValue) {
+								case 1.00:
+									noteValueOverlay.x = 0;
+									break;
+								
+								case 0.50:
+									if(this.x < 252 + (0.25 * SCORE_WIDTH)) {
+										noteValueOverlay.x = 0;
+									} else if(this.x < 252 + (0.50 * SCORE_WIDTH)) {
+										noteValueOverlay.x = 0.25 * SCORE_WIDTH;
+									} else {
+										noteValueOverlay.x = 0.5 * SCORE_WIDTH;
+									}
+									break;
+								
+								case 0.25:
+									if(this.x < 252 + (0.25 * SCORE_WIDTH) - 44) {
+										noteValueOverlay.x = 0;
+									} else if(this.x < 252 + (0.50 * SCORE_WIDTH) - 44) {
+										noteValueOverlay.x = 0.25 * SCORE_WIDTH;
+									} else if(this.x < 252 + (0.75 * SCORE_WIDTH) - 44) {
+										noteValueOverlay.x = 0.5 * SCORE_WIDTH;
+									} else {
+										noteValueOverlay.x = 0.75 * SCORE_WIDTH;
+									}
+									break;
+							}
+						} else {
+							noteValueOverlay.visible = false;
+						}
+						
+						// set the image source based on the notevalue
+						switch(noteValueOverlay.noteValue) {
+							case 1.00:
+								imageName = "wholeNote.png";
+								break;
+							
+							case 0.50:
+								imageName = "halfNote.png";
+								break;
+							
+							case 0.25:
+								imageName = "quarterNote.png";
+								break;	
+						}
+					}
+					
+//					// set the colour
+//					switch(note.classID) {
+//						case 0:
+//							colour = 0x0000FF;
+//							break;
+//							
+//						case 1:
+//							colour = 0xFF0000;
+//							break;
+//							
+//						case 2:
+//							colour = 0xFFFF00;
+//							break;
+//							
+//						default:
+//							colour = 0x999999;
+//							break;		
+//					}
+//					if(noteValueOverlay) {
+//						noteValueOverlay.colour = colour;
+//					}
+					
+					// set the note name if we are inside of the score container
+					if(this.x >= 252 && this.x <= 1024 && this.y >= 99 && this.y <= 561) {
+						// we are inside the score container, now determine the note name based on position (51.33 apart)
+						var solfege:String;
+						if(this.y >= 99 && this.y < 150.33) {
+							noteName = "F4";
+							solfege = "fa";
+						} else if(this.y >= 150.33 && this.y < 201.66) {
+							noteName = "E4";
+							solfege = "mi";
+						} else if(this.y >= 201.66 && this.y < 252.99) {
+							noteName = "D4";
+							solfege = "ré";
+						} else if(this.y >= 252.99 && this.y < 304.32) {
+							noteName = "C4";
+							solfege = "do";
+						} else if(this.y >= 304.32 && this.y < 355.65) {
+							noteName = "B4";
+							solfege = "si";
+						} else if(this.y >= 355.65 && this.y < 406.98) {
+							noteName = "A4";
+							solfege = "la";
+						} else if(this.y >= 406.98 && this.y < 458.31) {
+							noteName = "G3";
+							solfege = "sol";
+						} else if(this.y >= 458.31 && this.y < 509.64) {
+							noteName = "F3";
+							solfege = "fa";
+						} else if(this.y >= 509.64 && this.y <= 561) {
+							noteName = "E3";
+							solfege = "mi";
+						}
+					} else {
+						noteName = "";
+					}
+					
+					if(noteValueOverlay && noteName != "") {
+						noteValueOverlay.solfege = solfege;
+					}
+				}
+			}
+		]]>
+	</fx:Script>
+	
+	<!--
+	<s:Rect width="100%" height="100%">
+		<s:fill>
+			<s:SolidColor color="{colour}" />
+		</s:fill>
+	</s:Rect>
+	-->
+	
+	<mx:Image source="assets/images/{imageName}" bottom="0">
+	</mx:Image>
+</s:Group>
